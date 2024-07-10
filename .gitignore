@@ -1,0 +1,8 @@
+archive/
+env/
+example.egg-info/
+scrapperBot/database/
+*/node_modules/
+*/__pycache__/
+refined_variables.pkl
+code_embedding_model.bin

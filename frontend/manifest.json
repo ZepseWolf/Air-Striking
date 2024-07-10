@@ -1,0 +1,36 @@
+{
+    "name": "Air Striking Assistance",
+    "version": "1.0.0",
+    "description": "This tool allow user to perform execution and protect users from malicious website",
+    "manifest_version": 3,
+    "author": "See Kai Cong",
+    "action": {
+        "default_popup": "index.html",
+        "default_title": "Air Striking Assistance",
+        "default_icon": {
+            "16": "images/icon16.png",
+            "48": "images/icon16.png",
+            "96": "images/icon16.png",
+            "128": "images/icon16.png"
+          }
+    },
+    "permissions": [
+        "tabs",
+        "storage",
+        "activeTab"
+    ],
+    "content_security_policy": {
+      "extension_pages": "script-src 'self'; img-src 'self'"
+    },
+    "background": {
+        "service_worker": "./js/background.js"
+    },
+    "content_scripts": [
+        {
+          "matches": ["<all_urls>"],
+          "js": ["./js/contentScript.js"],
+          "run_at": "document_start"
+        }
+      ]
+    
+}
