@@ -21,7 +21,7 @@ max_sequence_length = 20
 embedding_dim = 50
 max_len = 200
 
-# Analytics
+# Training Analytics
 def getCorrectlyIdentifedArr(model , x_val, y_val):
     y_pred = model.predict(x_val)
     threshold = 0.5
@@ -63,46 +63,12 @@ def printModelPerformance(model_history , typeOfModel):
     plt.tight_layout()
     plt.show()
 
-for i in range(1,300):
-    print(i)
-    file_path = '../scrapperBot/database/signatures/websites'+str(i)+'.json'
-    with open(file_path, 'r') as file:
-        # Load JSON data from the file
-      
-        for ii , row in enumerate(json.load(file)):
-            
-            # json_data[i]['signatures'] = ' '.join(row['signatures'])
-            current_classification = row['classification']
+with open('refined_variables.pkl', 'rb') as file:
+    data = pickle.load(file)
     
-            if current_classification == 0 and countLegit < countPhishing:
-                colums_text.append(row['signatures'])
-                train_labels.append(row['classification'])
-                countLegit += 1
-            elif current_classification == 1:
-                colums_text.append(row['signatures'])
-                train_labels.append(row['classification'])
-                countPhishing += 1
-                
-train_labels = np.array(train_labels)
-colums_text = np.array(colums_text)
-
-# Text tokenizer
-tokenizer = keras.preprocessing.text.Tokenizer(num_words=10000, filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~ '
-                                                        , lower=True, split=' ', char_level=False, oov_token=None, document_count=0)
-tokenizer.fit_on_texts(colums_text)
-t = tokenizer.texts_to_sequences(colums_text)
-train_data = tf.keras.utils.pad_sequences(t, max_len, padding='post', value=0)
-
-with open('tokenizer.pkl', 'wb') as f:
-    pickle.dump(tokenizer, f)
-
-variables = {"train_labels" : train_labels, "colums_text" : train_data}
-with open('text_cleaned_variable.pkl', 'wb') as file:
-    pickle.dump(variables, file)
-
 # Cross validaiton setup
-x_train, x_val, y_train, y_val = train_test_split(train_data, train_labels, test_size=0.3, random_state=24)
-exit()
+x_train, x_val, y_train, y_val = train_test_split(data['context_array'], data['train_labels'], test_size=0.3, random_state=24)
+
 ## ------------------------------------------ cnn -------------------------------------
 model2 = keras.Sequential()
 model2.add(keras.layers.Embedding(input_dim=size_of_vocabulary, output_dim=128, input_length=max_len))
@@ -124,10 +90,11 @@ model2_history = model2.fit( x_train,
             batch_size=500,
             validation_data=(x_val, y_val),
             verbose=1)
-# model2.save('text_classification_cnn.h5')
+
+model2.save('text_classification_cnn.h5')
 
 getCorrectlyIdentifedArr(model2 , x_val, y_val)
-# printModelPerformance(model2_history, "CNN")
+printModelPerformance(model2_history, "CNN")
 
 # ------------------------------------------ attention bilstm ------------------------------------- 
 
@@ -162,7 +129,6 @@ model3 = Sequential()
 model3.add(Embedding(input_dim=size_of_vocabulary, output_dim=128, input_length=max_len))
 model3.add(Bidirectional(LSTM(64, return_sequences=True)))
 model3.add(attention(return_sequences=False)) # receive 3D and output 3D
-# model3.add(Dropout(0.5))
 model3.add(Dense(1, activation='sigmoid'))
 model3.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy']) 
 
@@ -172,7 +138,7 @@ history_model3=model3.fit(x_train, y_train,
            epochs=40,
            validation_data=[x_val, y_val])
 
-# model3.save('text_classification_biLSTM_attention.h5')
+model3.save('text_classification_biLSTM_attention.h5')
 
 getCorrectlyIdentifedArr(model3 , x_val, y_val)
-# printModelPerformance(history_model3, "BILSTM-Attention")
+printModelPerformance(history_model3, "BILSTM-Attention")

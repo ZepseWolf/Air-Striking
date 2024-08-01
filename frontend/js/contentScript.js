@@ -1,22 +1,13 @@
 // Call the function to handle URL change
 init();
-// const observeUrlChange = () => {
-//     let oldHref = document.location.href;
-//     const body = document.querySelector("body");
-//     const observer = new MutationObserver(mutations => {
-//         if (oldHref !== document.location.href) {
-//         oldHref = document.location.href;
-//         init();
-//         }
-//     });
-//     observer.observe(body, { childList: true, subtree: true });
-// };
 
-// window.onload = observeUrlChange;
+chrome.runtime.onMessage.addListener((obj, sender, response) => {
+    if(obj.message="urlBlock"){
+        blockWebsiteUi();
+        saveURLResultToCache(true);
+    }
+});
 
-// browser.runtime.connect().onDisconnect.addListener(function() {
-//     // clean up when content script gets disconnected
-// })
 window.addEventListener("beforeunload", function (e) {
     // chrome.storage.local.get(function(result) {
     //     var data = result.actionData
@@ -39,8 +30,11 @@ window.addEventListener("beforeunload", function (e) {
     return "closing?"; 
 });
 
-// chrome.runtime.sendMessage({ currentUrl: window.location.href });
-// chrome.runtime.sendMessage({ type: "showNotification", text: "Hello from the extension!" });
+function getDomain(url) {
+    const regex = /^(?:https?:\/\/)?(?:www\.)?([^\/]+)/i;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
 
 function getCurrentTabId() {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -200,14 +194,15 @@ async function loadLocalStorage() {
     });
 }
 
-function addNewAffectedURL(data){
-    // Data should be {url:"" , affected: true}
-    chrome.storage.local.get(['actionData'], function(result) {
-        chrome.storage.local.set({actionData : result.push(data)}, function() {
-            console.log("successfully added url scanned result")
-        });
-    });
-}
+// function addNewAffectedURL(data){
+//     // Data should be {url:"" , affected: true}
+//     chrome.storage.local.get(['actionData'], function(result) {
+//         chrome.storage.local.set({actionData : result.push(data)}, function() {
+//             console.log("successfully added url scanned result")
+//         });
+//     });
+// }
+
 
 
 async function checkCacheForCurrentURL() {
@@ -215,14 +210,14 @@ async function checkCacheForCurrentURL() {
         console.log("Check for cache");
         chrome.storage.local.get( function(result) {
             if (chrome.runtime.lastError) {
-                // Handle any errors from chrome.storage.local.get()
                 reject(chrome.runtime.lastError);
                 return;
             }
 
             if ('actionData' in result) {
+                
                 for (let i = 0; i < result.actionData.length; i++) {
-                    if (result.actionData[i].url === document.location.href) {
+                    if (result.actionData[i].url === getDomain(document.location.href)) {
                         // Resolve with affected and forceEntry values
                         console.log("Affected:", result.actionData[i].affected, "Force Entry:", result.actionData[i].forceEntry);
                         resolve({ affected: result.actionData[i].affected, forceEntry: result.actionData[i].forceEntry });
@@ -280,17 +275,30 @@ function checkAndBlock(cachedData){
     )
 }
 
+function findUrlInString(arr, str) {
+    return arr.map((item, index) => str.includes(item.url) ? index : -1).filter(index => index !== -1);
+}
+
 function saveURLResultToCache( isAffected){
     chrome.storage.local.get(function(result) {
         var data = result.actionData
-        
+        var url = getDomain(window.location.href)
+
         if(data.length > 0 ){
-            data[data.length] = { url: window.location.href , affected: isAffected , forceEntry :false}
+            indices = findUrlInString(data, url)
+
+            // Find dup
+            if(indices.length >0){
+                data[indices[0]] = { url , affected: isAffected , forceEntry :false}
+            }else{
+                data[data.length] = { url , affected: isAffected , forceEntry :false}
+            }
+            
             
         }else{
-            data = [{ url: window.location.href , affected: isAffected , forceEntry :false}]
+            data = [{ url, affected: isAffected , forceEntry :false}]
         }
-         
+        
         chrome.storage.local.set({ 
             'actionData': data
         }, function() {
@@ -303,7 +311,7 @@ function updateForceEntry( isForceEntry){
     chrome.storage.local.get( function(result) {
         for (let item of result.actionData) {
             // Check if the URL matches
-            if (item.url === window.location.href ) {
+            if (item.url === getDomain(window.location.href) ) {
                 // Return the affected status
                 item.forceEntry = isForceEntry
             }
@@ -315,3 +323,4 @@ function updateForceEntry( isForceEntry){
         });
     });
 }
+

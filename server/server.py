@@ -14,12 +14,13 @@ import bs4
 import fasttext
 import numpy as np
 import tensorflow as tf
-import keras
+
 import json
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from keras.callbacks import CSVLogger
 
+import keras
 from keras import backend as K
 from keras.utils import custom_object_scope
 from keras.layers import *
@@ -59,7 +60,7 @@ def get_peer_certificate(host, port=443):
                 'notBefore': cert['notBefore'],
                 'notAfter': cert['notAfter'],
             }
-            print(cert)
+            # print(cert)
             return certificate_information
 
     except ssl.SSLError as e:
@@ -161,37 +162,32 @@ def add_data():
             signatures, websites= get_content(htmlString)
 
             # Clean URL and JS 
-            src_combined =[]
-            for src in websites:
-                targetUrl = src
-                if src[:2] == "//":
-                    targetUrl = src[2:]
+            # src_combined =[]
+            # for src in websites:
+            #     targetUrl = src
+            #     if src[:2] == "//":
+            #         targetUrl = src[2:]
             
-                elif src[:1] == "/" :
-                    targetUrl = get_domain_from_url(url)+src
-                else:
-                    targetUrl = src
-                src_combined += js_to_trainable_string_arr(get_javascript(src))
+            #     elif src[:1] == "/" :
+            #         targetUrl = get_domain_from_url(url)+src
+            #     else:
+            #         targetUrl = src
+            #     src_combined += js_to_trainable_string_arr(get_javascript(src))
 
             if signatures != "":
                 t = loaded_tokenizer.texts_to_sequences([signatures])
-                tokenized_text = keras.preprocessing.sequence.pad_sequences(t, max_len, padding='post', value=0)
+                tokenized_text = tf.keras.utils.pad_sequences(t, max_len, padding='post', value=0)
                 y_pred_prob = text_cnn_model.predict(tokenized_text)
-                print("current url is " , y_pred_prob[0][0] )
-                # y_pred = tf.argmax(y_pred_prob, axis=1)  # Convert probabilities to class labels
+                print("Current url scored : " , y_pred_prob[0][0] )
                 return jsonify({'isAffected': False if round(y_pred_prob[0][0], 0) == 0 else True ,'message': 'Data added successfully.'}), 201
-                # print(" this is the predicted for text_cnn model :",round(y_pred_prob[0][0], 0) )
             else:
                 # signature not found
-                
                 pass
-            if len(src_combined) != 0  :
+            # if len(src_combined) != 0  :
                 # if there is website
-
-                pass
-            else:
-
-                pass
+            #     pass
+            # else:
+            #     pass
                 
             return jsonify({'isAffected': True ,'message': 'Data added successfully.'}), 201
     else:

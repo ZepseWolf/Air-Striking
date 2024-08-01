@@ -1,7 +1,9 @@
 archive/
-env/
+venv/
 example.egg-info/
-scrapperBot/database/
+scrapperBot/database/signatures/
+scrapperBot/database/test.parquet
+scrapperBot/database/train.parquet
 */node_modules/
 */__pycache__/
 refined_variables.pkl

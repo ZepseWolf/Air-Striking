@@ -1,4 +1,18 @@
 // Listen for messages from content script
+// chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+//   if (request.greeting === "hello") {
+//     // Query all tabs and send a message to all content scripts
+//     chrome.tabs.query({}, function (tabs) {
+//       for (let tab of tabs) {
+//         chrome.tabs.sendMessage(tab.id, { greeting: "hello" }, function (response) {
+//           // Handle the response if needed
+//           console.log(response ? response.farewell : "No response from tab " + tab.id);
+//         });
+//       }
+//     });
+//     sendResponse({ farewell: "Message broadcasted to all tabs" });
+//   }
+// });
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   console.log("starting ... on message")

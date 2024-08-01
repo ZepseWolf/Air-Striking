@@ -60,7 +60,6 @@ def get_content(text):
     scripts = soup.find_all('script')
     srcs = [link['src'] for link in scripts if 'src' in link.attrs]
     text = text.replace('\n', '').replace('\t', '')
-    # url_pattern = r'https?://\S+?(?=["\'])'
     pattern = r'<script\b[^>]*>.*?</script>'
     # Remove all <script> tags and their content from the HTML
     modified_html1 = re.sub(pattern, '', text, flags=re.DOTALL)
@@ -71,8 +70,6 @@ def get_content(text):
     # Find all matches using the regex pattern
     urls =  re.findall(url_pattern, modified_html)
     trimmed_urls = [url.strip() for url in urls]
-    
-    #joint_string = trimmed_urls #+ remove_non_alphanumeric_starting_elements(get_all_data_from_script(text)) 
     
     return ' '.join(trimmed_urls), srcs 
 
@@ -92,41 +89,13 @@ def get_HTML_and_cert(url):
 #Provide the file path to your Parquet file
 file_path = './database/train.parquet'
 
-class attention(Layer):
-    def __init__(self, return_sequences=True):
-        self.return_sequences = return_sequences
-
-        super(attention,self).__init__()
-
-    def build(self, input_shape):
-        self.W=self.add_weight(name="att_weight", shape=(input_shape[-1],1),
-                               initializer="normal")
-        self.b=self.add_weight(name="att_bias", shape=(input_shape[1],1),
-                               initializer="normal")
-        self.b=self.add_weight(name="att_bias", shape=(input_shape[1],1),
-                               initializer="normal")
-        self.b=self.add_weight(name="att_bias", shape=(input_shape[1],1),
-                               initializer="normal")
-
-        super(attention,self).build(input_shape)
-
-
-    def call(self, x):
-        e = K.tanh(K.dot(x,self.W)+self.b)
-        a = K.softmax(e, axis=1)
-        output = x*a
-        if self.return_sequences:
-
-            return output
-        return K.sum(output, axis=1)
-
 # Read the Parquet file
 df = pd.read_parquet(file_path)
 json_data = []
 phishingCount = 0
 legitCount =0
-# for index, row in df.iterrows():
-for index, row in df.iloc[160:].iterrows(): 
+
+for index, row in df.iterrows(): 
     index = index
 
     url = row['url']

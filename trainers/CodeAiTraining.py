@@ -25,42 +25,7 @@ max_sequence_length = 20
 embedding_dim = 50
 max_len = 200
 
-embedding_model = fasttext.load_model('code_embedding_model.bin')
-# Pre processing for JS code sampling
-def remove_surrogates(input_string):
-    # Filter out characters that fall within the surrogate ranges
-    return ''.join(char for char in input_string if not (0xD800 <= ord(char) <= 0xDFFF))
-
-def count_words(text):
-    return len(text.split())
-
-def pad_array(arr, length):
-    return np.pad(arr, (0, length - len(arr)), mode='constant')
-
-def manual_embedding (current_website_in_word):
-    tempArr = []
-    if len(current_website_in_word) < max_len:
-        for x in range(max_len):
-        # for word in current_website_in_word:
-            # Padding with values
-            if x < len(current_website_in_word):
-                phase = remove_surrogates(current_website_in_word[x]).replace("\n"," ")
-                tempArr.append(embedding_model.get_sentence_vector(phase))
-            else:
-                tempArr.append([0] * 128)
-        tempArr = pad_array(tempArr, max_len)
-
-        
-    else:
-        for x in range(max_len):
-            # Fair sampling in range
-            gap = len(current_website_in_word)//max_len
-            phase = remove_surrogates(" ".join(current_website_in_word[x*gap:x*gap+gap ]).replace("\n"," "))
-            # print(phase)
-            tempArr.append(embedding_model.get_sentence_vector(phase))
-    return tempArr
-
-# Analytics
+# Training Analytics
 def getCorrectlyIdentifiedArr(model, x_val, y_val):
     y_pred = model.predict(x_val)
     threshold = 0.5
@@ -102,53 +67,12 @@ def printModelPerformance(model_history , typeOfModel):
     plt.tight_layout()
     plt.show()
 
-for i in range(1,300):
-    print(i)
-    file_path = '../scrapperBot/database/signatures/websites'+str(i)+'.json'
-    with open(file_path, 'r', encoding='utf-8') as file:
-        # Load JSON data from the file
-      
-        for i , row in enumerate(json.load(file)):
-            current_classification = row['classification']
-            current_website_in_word = row['websites']
-            
-            if current_classification == 0 and countLegit < countPhishing:
-                # Ensure both legit and malisious webiste are equal numbered
-           
-                tempArr = manual_embedding(current_website_in_word)
-                code_array.append(tempArr)
+with open('refined_variables.pkl', 'rb') as file:
+    data = pickle.load(file)
+x_train, x_val, y_train, y_val = train_test_split(data['code_array'], data['train_labels'], test_size=0.3, random_state=24)
 
-                train_labels.append(row['classification'])
-                index_array.append(row['index'])
-                countLegit += 1
-                
-            elif current_classification == 1:
-                tempArr = manual_embedding(current_website_in_word)
-                code_array.append(tempArr)
-                train_labels.append(row['classification'])
-                index_array.append(row['index'])
-                countPhishing += 1
-
-
-print("Legit : " , countLegit, " Phishing : " , countPhishing )
-train_labels = np.array(train_labels)
-code_array = np.array(code_array)
-
-with open('code_cleaned_variable.pkl', 'wb') as file:
-    pickle.dump({"train_labels" : train_labels, "code_array" : code_array, "index_array" : index_array}, file)
-
-
-# tokenizer = keras.preprocessing.text.Tokenizer(num_words=vocab_size
-#                                                         , lower=True, split=' ', char_level=False, oov_token=None, document_count=0)
-# tokenizer.fit_on_texts(code_array)
-# t = tokenizer.texts_to_sequences(code_array)
-# train_data = keras.preprocessing.sequence.pad_sequences(t, maxlen, padding='post', value=0)
-
-x_train, x_val, y_train, y_val = train_test_split(code_array, train_labels, test_size=0.3, random_state=24)
-
-## ------------------------------------------ cnn -------------------------------------
+## ------------------------------------------ CNN -------------------------------------
 model2 = keras.Sequential()
-# model2.add(keras.layers.Embedding(input_dim=vocab_size,  output_dim=128, input_length=maxlen))
 model2.add(keras.layers.Conv1D(filters=64, kernel_size=3, activation='relu'))
 model2.add(keras.layers.LeakyReLU(0.1))
 model2.add(keras.layers.Conv1D(filters=64, kernel_size=3, activation='relu'))
@@ -169,7 +93,7 @@ model2_history= model2.fit( x_train,
 model2.save('code_classification_cnn3.h5')
 
 getCorrectlyIdentifiedArr(model2, x_val, y_val)
-# printModelPerformance(model2_history, "CNN")
+printModelPerformance(model2_history, "CNN")
 
 # ------------------------------------------ attention bilstm -------------------------------------
 
@@ -201,10 +125,8 @@ class attention(Layer):
         return K.sum(output, axis=1)
 
 model3 = Sequential()
-# model3.add(Embedding(input_dim=vocab_size, output_dim=128, input_length=maxlen))
 model3.add(Bidirectional(LSTM(64, return_sequences=True)))
 model3.add(attention(return_sequences=False)) # receive 3D and output 3D
-# model3.add(Dropout(0.5))
 model3.add(Dense(1, activation='sigmoid'))
 model3.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy']) 
 history_model3=model3.fit(x_train, y_train,
@@ -215,4 +137,4 @@ history_model3=model3.fit(x_train, y_train,
 model3.save('code_classification_biLSTM_attention3.h5')
 
 getCorrectlyIdentifiedArr(model3, x_val, y_val)
-# printModelPerformance(history_model3, "BILSTM-Attention")
+printModelPerformance(history_model3, "BILSTM-Attention")

@@ -1,12 +1,3 @@
-// Main js is binded to the main js 
-// This function sends a message to the content script to retrieve the URL
-function getCurrentTabUrl() {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    const currentTab = tabs[0];
-    chrome.tabs.sendMessage(currentTab.id, { action: "getCurrentTabUrl" });
-  });
-}
-
 // This function handles the message received from content script and updates the popup
 function updateUrl(url) {
   const urlDisplay = document.getElementById("urlDisplay");
@@ -16,8 +7,8 @@ function updateUrl(url) {
 
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Add event listener to the button
-  document.getElementById('saveDataBtn').addEventListener('click', function() {
+
+  document.getElementById('resetDataBtn').addEventListener('click', function() {
     
       // chrome.storage.local.get(['affected'], function(result) {
       //   console.log('Value currently is ' + result.key);
@@ -34,11 +25,14 @@ document.addEventListener('DOMContentLoaded', function() {
       
   });
   
-});
+  document.getElementById('blockSiteBtn').addEventListener('click', async function() {
 
-
-
-// On popup load, get the current tab's URL
-document.addEventListener("DOMContentLoaded", function () {
-  getCurrentTabUrl();
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      // Send a message to the content script in the active tab
+      chrome.tabs.sendMessage(tabs[0].id, { message: "urlBlock" }, function (response) {
+        console.log(response.farewell);
+      });
+    });
+  });
+    
 });

@@ -1,4 +1,4 @@
-import fasttext
+
 import numpy as np
 import tensorflow as tf
 import keras
@@ -9,6 +9,7 @@ import pickle
 from keras import backend as K
 from keras.layers import *
 from keras.models import *
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, precision_score, recall_score
 import matplotlib.pyplot as plt
 
 train_labels = []
@@ -21,8 +22,6 @@ vocab_size = 20000
 max_sequence_length = 20
 embedding_dim = 50
 max_len = 200
-
-embedding_model = fasttext.load_model('code_embedding_model.bin')
 
 class attention(Layer):
     def __init__(self, return_sequences=True):
@@ -62,7 +61,7 @@ def pad_array(arr, length):
     return np.pad(arr, (0, length - len(arr)), mode='constant')
 
 # Analytics
-def getCorrectlyIdentifiedArr(model, x_val, y_val,index_arr):
+def get_correctly_identified_arr(model, x_val, y_val,index_arr):
     y_pred = model.predict(x_val)
     threshold = 0.5
     y_pred_binary = (y_pred > threshold).astype(int).flatten()
@@ -88,6 +87,30 @@ def find_subsets(A, B):
 
     return list(subset_A_not_B), list(subset_B_not_A)
 
+def compute_confusion_matrix(model, x_val, y_val,title, color):
+    # Get model predictions
+    predictions = model.predict(x_val)
+    if predictions.shape[1] == 1:
+        predicted_labels = (predictions >= 0.5).astype(int).flatten()
+    else:
+        predicted_labels = np.argmax(predictions, axis=1)
+    
+    # Generate confusion matrix
+    cm = confusion_matrix(y_val, predicted_labels)
+
+    precision = precision_score(y_val, predicted_labels, average='binary' if predictions.shape[1] == 1 else 'macro')
+    recall = recall_score(y_val, predicted_labels, average='binary' if predictions.shape[1] == 1 else 'macro')
+    
+    # Print precision and recall
+    print(title+f" Precision: {precision:.4f}")
+    print(title+f" Recall: {recall:.4f}")
+
+    # Plot confusion matrix
+    ConfusionMatrixDisplay(cm).plot(cmap=color)
+    plt.title(title)
+    plt.show()
+    return cm
+
 def write_to_file(filename, data):
     with open(filename, 'w') as file:
         for item in data:
@@ -95,22 +118,22 @@ def write_to_file(filename, data):
 
 with open('refined_variables.pkl', 'rb') as file:
     data = pickle.load(file)
-code_x_train, code_x_val, code_y_train, code_y_val = train_test_split(data['code_array'], data['train_labels'], test_size=0.3,shuffle = False, random_state=24)
-text_x_train, text_x_val, text_y_train, text_y_val = train_test_split(data['context_array'], data['train_labels'], test_size=0.3,shuffle = False, random_state=24)
+code_x_train, code_x_val, code_y_train, code_y_val = train_test_split(data['code_array'], data['train_labels'], test_size=0.3 ,shuffle=False , random_state=24)
+text_x_train, text_x_val, text_y_train, text_y_val = train_test_split(data['context_array'], data['train_labels'], test_size=0.3,shuffle=False , random_state=24)
 
 index_array = np.array(data['index_array'])
 
 code_cnn = tf.keras.models.load_model('code_classification_cnn3.h5')
-code_cnn_result = getCorrectlyIdentifiedArr(code_cnn, code_x_val, code_y_val , index_array)
+code_cnn_result = get_correctly_identified_arr(code_cnn, code_x_val, code_y_val , index_array)
 
 code_bilstm = tf.keras.models.load_model('code_classification_biLSTM_attention3.h5', custom_objects = {'attention': attention})
-code_bilstm_result = getCorrectlyIdentifiedArr(code_bilstm, code_x_val, code_y_val , index_array)
+code_bilstm_result = get_correctly_identified_arr(code_bilstm, code_x_val, code_y_val , index_array)
 
 text_cnn = tf.keras.models.load_model('text_classification_cnn.h5')
-text_cnn_result =getCorrectlyIdentifiedArr(text_cnn , text_x_val, text_y_val, index_array)
+text_cnn_result =get_correctly_identified_arr(text_cnn , text_x_val, text_y_val, index_array)
 
 text_bilstm = tf.keras.models.load_model('text_classification_biLSTM_attention.h5', custom_objects = {'attention': attention})
-text_bilstm_result = getCorrectlyIdentifiedArr(text_bilstm , text_x_val, text_y_val, index_array)
+text_bilstm_result = get_correctly_identified_arr(text_bilstm , text_x_val, text_y_val, index_array)
 
 cnn_subset_A_not_B, cnn_subset_B_not_A = find_subsets(text_cnn_result, code_cnn_result)
 
@@ -119,7 +142,10 @@ print("cnn text dif : ", cnn_subset_A_not_B ," cnn code dif* : ", cnn_subset_B_n
 bilstm_A_not_B, bilstm_subset_B_not_A = find_subsets(text_bilstm_result, code_bilstm_result)
 
 print("bilstm text dif : ", bilstm_A_not_B ," bilstm code dif* : ", bilstm_subset_B_not_A )
-# print(text_data['colums_text'][0])
-# print(code_data['code_array'][0])
 
-# outputArray = mainArray[bilstm_subset_B_not_A]
+
+# Compute confusion matrices for each model
+code_cnn_cm = compute_confusion_matrix(code_cnn, code_x_val, code_y_val , 'Code CNN Confusion Matrix', "Blues")
+code_bilstm_cm = compute_confusion_matrix(code_bilstm, code_x_val, code_y_val, 'Code BiLSTM Confusion Matrix', "Reds")
+text_cnn_cm = compute_confusion_matrix(text_cnn, text_x_val, text_y_val, 'Text CNN Confusion Matrix', "Greens")
+text_bilstm_cm = compute_confusion_matrix(text_bilstm, text_x_val, text_y_val, 'Text BiLSTM Confusion Matrix', "Purples")
